@@ -1,0 +1,18 @@
+﻿const AUTO_SEARCH_PATTERNS = [
+  /\b(latest|today|tonight|tomorrow|yesterday|current|currently|now)\b/i,
+  /\b(news|weather|price|prices|stock|score|scores|result|results)\b/i,
+  /\b(recent|recently|this week|this month|this year)\b/i,
+  /\b(who is|what happened|when is|where is)\b/i,
+  /\b(search|look up|find online|on the internet|on web|website|official site)\b/i,
+];
+
+function shouldUseWebSearch(message) {
+  const text = String(message || '').trim();
+
+  if (!text) return false;
+
+  return AUTO_SEARCH_PATTERNS.some(
+    (pattern) => pattern.test(text),
+  );
+}
+
