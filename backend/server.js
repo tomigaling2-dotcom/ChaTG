@@ -412,21 +412,43 @@ async function geminiSearchSynthesis(
   sources,
 ) {
   const enrichedSources =
-    await Promise.all(
-      sources.map(
-        async (source) => {
+  await Promise.all(
+    sources.map(
+      async (source) => {
+        try {
           const pageContent =
-            await fetchWebPageContent(
-              source.url,
-            );
+            await Promise.race([
+              fetchWebPageContent(
+                source.url,
+              ),
+              new Promise(
+                (resolve) =>
+                  setTimeout(
+                    () => resolve(''),
+                    12000,
+                  ),
+              ),
+            ]);
 
           return {
             ...source,
             pageContent,
           };
-        },
-      ),
-    );
+        } catch (error) {
+          console.warn(
+            'Source processing failed:',
+            source.url,
+            errorMessage(error),
+          );
+
+          return {
+            ...source,
+            pageContent: '',
+          };
+        }
+      },
+    ),
+  );
 
   const sourceText =
     enrichedSources
@@ -1246,45 +1268,61 @@ async function autoChat(
    */
 
   if (
-    useWebSearch &&
-    !attachment?.base64
-  ) {
-    try {
-      const searchQuery =
-        await normalizeSearchQuery(message, history);
+  useWebSearch &&
+  !attachment?.base64
+) {
+  try {
+    const searchQuery =
+      await normalizeSearchQuery(message, history);
 
-      const sources =
-        await searxngWebSearch(
-          searchQuery,
-        );
+    const sources =
+      await searxngWebSearch(
+        searchQuery,
+      );
 
-      const reply =
-        sources
-          .map(
-            (item, index) =>
-              `${index + 1}. ${item.title}\n${item.snippet || ''}\n${item.url}`,
-          )
-          .join('\n\n');
-
+    if (!sources.length) {
       return {
         text:
-          reply ||
           'No web search results found.',
         model:
           'searxng',
-        sources,
+        sources: [],
         provider:
           'searxng',
         webSearch:
           true,
       };
-    } catch (searchError) {
-      console.warn(
-        'SearXNG Web Search unavailable; falling back to normal chat.',
-        errorMessage(searchError),
-      );
     }
+
+    /*
+     * Search results are now passed to AI
+     * so ChaTG gives a direct answer instead
+     * of dumping raw search links.
+     *
+     * Website/page fetching remains inside
+     * geminiSearchSynthesis().
+     */
+    const result =
+      await geminiSearchSynthesis(
+        message,
+        history,
+        sources,
+      );
+
+    return {
+      ...result,
+      provider:
+        'gemini',
+      webSearch:
+        true,
+    };
+  } catch (searchError) {
+    console.warn(
+      'Web Search unavailable; falling back to normal chat.',
+      errorMessage(searchError),
+    );
   }
+}
   if (attachment?.base64) {
     if (String(attachment.mimeType || '').startsWith('image/')) {
       const image = await analyzeImage(attachment.base64, attachment.mimeType, message);
@@ -2348,8 +2386,7 @@ async function handle(
         502,
         {
           error:
-              errorMessage(error),
-          provider,
+              'ChaTG could not generate a response right now. please try again shortly.',
         },
       );
     }
@@ -2580,7 +2617,7 @@ async function fetchWebPageContent(
   const timeout =
     setTimeout(
       () => controller.abort(),
-      30000,
+      10000,
     );
 
   try {

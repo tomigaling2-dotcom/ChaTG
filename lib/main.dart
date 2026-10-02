@@ -238,7 +238,57 @@ class _ChaTGHomeState extends State<ChaTGHome> {
       _controller.clear();
     });
   }
+void _renameChat(ChatConversation chat) {
+    final controller = TextEditingController(text: chat.title);
 
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Rename chat'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            maxLength: 80,
+            decoration: const InputDecoration(
+              hintText: 'Chat name',
+            ),
+            onSubmitted: (_) {
+              final title = controller.text.trim();
+
+              if (title.isNotEmpty) {
+                setState(() {
+                  chat.title = title;
+                });
+              }
+
+              Navigator.pop(context);
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final title = controller.text.trim();
+
+                if (title.isNotEmpty) {
+                  setState(() {
+                    chat.title = title;
+                  });
+                }
+
+                Navigator.pop(context);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    ).then((_) => controller.dispose());
+  }
   void _clearAttachment() {
     _attachedFileName = null;
     _attachedFileText = null;
@@ -1347,11 +1397,16 @@ void _openSettings() {
                       Icons.chat_bubble_outline,
                       size: 19,
                     ),
-                    title: Text(
-                      chat.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                    title: GestureDetector(
+                     onLongPress: _sending
+                     ? null
+                    : () => _renameChat(chat),
+                child: Text(
+                 chat.title,
+                 maxLines: 1,
+                 overflow: TextOverflow.ellipsis,
+                ),
+              ),
                     trailing: IconButton(
                       tooltip: 'Delete chat',
                       icon: const Icon(

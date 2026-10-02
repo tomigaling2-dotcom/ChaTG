@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
@@ -50,7 +50,7 @@ class AiImageResult {
 class AiService {
   static const String baseUrl = String.fromEnvironment(
     'CHATTG_BACKEND_URL',
-    defaultValue: 'http://localhost:3000',
+    defaultValue: 'https://chatg-aq7b.onrender.com',
   );
 
   Future<Map<String, dynamic>> _post(
